@@ -1,0 +1,10 @@
+# Pre-commit hooks for atrib-log-pp-cli.
+#
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/creatornader/textleaks
+    rev: v0.2.0
+    hooks:
+      - id: textleaks

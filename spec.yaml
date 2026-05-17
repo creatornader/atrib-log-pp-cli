@@ -1,0 +1,233 @@
+openapi: 3.1.0
+info:
+  title: log.atrib.dev
+  version: "1.0"
+  description: |
+    atrib transparency log — Sigsum-style append-only Merkle log of signed
+    agent action records. Each entry is a cryptographically signed record
+    of an LLM agent action (tool call, observation, annotation, revision).
+servers:
+  - url: https://log.atrib.dev
+paths:
+  /v1/checkpoint:
+    get:
+      summary: Get signed checkpoint
+      description: |
+        Returns the current signed checkpoint (tree size + root hash +
+        log signature). Use this to anchor your local view of the log
+        and verify inclusion proofs.
+      operationId: getCheckpoint
+      responses:
+        "200":
+          description: Signed checkpoint (Sigsum / RFC 6962 style)
+          content:
+            text/plain:
+              schema: { type: string }
+  /v1/pubkey:
+    get:
+      summary: Get verification public key
+      operationId: getPubkey
+      responses:
+        "200":
+          description: Log public key (Ed25519, base64)
+          content:
+            text/plain:
+              schema: { type: string }
+  /v1/stats:
+    get:
+      summary: Tree statistics
+      operationId: getStats
+      responses:
+        "200":
+          description: Tree size + distinct signers + entries-by-event-type breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tree_size: { type: integer }
+                  distinct_signers: { type: integer }
+                  oldest_timestamp_ms: { type: integer }
+                  newest_timestamp_ms: { type: integer }
+                  entries_by_event_type:
+                    type: object
+                    properties:
+                      tool_call: { type: integer }
+                      observation: { type: integer }
+                      annotation: { type: integer }
+                      revision: { type: integer }
+                      transaction: { type: integer }
+                      directory_anchor: { type: integer }
+                      extension: { type: integer }
+                      reserved: { type: integer }
+  /v1/recent:
+    get:
+      summary: Most recent entries
+      operationId: listRecent
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Recent entries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tree_size: { type: integer }
+                  offset: { type: integer }
+                  returned: { type: integer }
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Entry" }
+  /v1/lookup/{hex}:
+    get:
+      summary: Lookup entry by record hash
+      operationId: lookupByHash
+      parameters:
+        - name: hex
+          in: path
+          required: true
+          description: SHA-256 hex (no `sha256:` prefix)
+          schema: { type: string, pattern: "^[0-9a-f]{64}$" }
+      responses:
+        "200":
+          description: Full record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
+        "404":
+          description: Hash not found in log
+  /v1/by-context/{hex}:
+    get:
+      summary: All entries in a context (session)
+      operationId: listByContext
+      parameters:
+        - name: hex
+          in: path
+          required: true
+          description: 32-char hex context_id
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Entries scoped to this context, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  context_id: { type: string }
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Entry" }
+  /v1/by-creator/{key}:
+    get:
+      summary: All entries by signer (creator key)
+      operationId: listByCreator
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Base64url-encoded Ed25519 public key
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Entries signed by this key, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  creator_key: { type: string }
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Entry" }
+  /v1/tile/{level}/{n}:
+    get:
+      summary: Get Merkle tile
+      description: Sigsum-style Merkle tile at level L, position N
+      operationId: getTile
+      parameters:
+        - name: level
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - name: n
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: Tile bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+  /v1/tile/entries/{n}:
+    get:
+      summary: Get entries within a tile (leaf-level)
+      operationId: getTileEntries
+      parameters:
+        - name: n
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: Entries in this leaf tile
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Entry" }
+  /v1/entries:
+    post:
+      summary: Append a signed entry
+      description: |
+        Write path. Submit a signed record for inclusion in the log.
+        Returns the assigned index + record_hash on success.
+      operationId: postEntry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntrySubmission" }
+      responses:
+        "201":
+          description: Entry accepted, included in next checkpoint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  index: { type: integer }
+                  record_hash: { type: string }
+components:
+  schemas:
+    Entry:
+      type: object
+      properties:
+        index: { type: integer }
+        record_hash: { type: string, example: "sha256:..." }
+        creator_key: { type: string }
+        context_id: { type: string }
+        timestamp_ms: { type: integer }
+        event_type:
+          type: string
+          enum: [tool_call, observation, annotation, revision, transaction, directory_anchor, extension, reserved]
+        event_type_byte: { type: integer }
+    EntrySubmission:
+      type: object
+      properties:
+        signed_payload: { type: string, description: "base64-encoded signed record bytes" }
+        signature: { type: string, description: "Ed25519 signature, base64" }

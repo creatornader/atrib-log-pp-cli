@@ -1,0 +1,30 @@
+# atrib-log-pp-cli textleaks config.
+#
+# This is a Printing-Press-generated CLI. The framework's example
+# strings ("tonight-defaults" as a sample profile name, "today" used
+# as a temporal adverb in help text, "Phase N" referencing the GOAT
+# methodology phase numbering) read as narrative leaks to the textleaks
+# starter catalog but are stable framework template content, not
+# operator narration.
+#
+# The exemptions below are scoped to the framework-generated files
+# that ship those strings. Any new files added by hand to this repo
+# are still subject to the full starter catalog.
+
+version: 1
+
+ignore_paths:
+  # Framework template strings (printingpress generator) that look like
+  # leak patterns but are public framework content.
+  - internal/cli/profile.go
+  - internal/cli/sync.go
+  - internal/cli/helpers.go
+  # The README and CHANGELOG reference codenames of related public OSS
+  # repos by name, which is legitimate cross-linking, not leaks.
+  - README.md
+  - CHANGELOG.md
+  # textleaks self-config + scanner config in starter shouldn't scan itself.
+  - textleaks.yaml
+  - .pre-commit-config.yaml
+
+classes: []

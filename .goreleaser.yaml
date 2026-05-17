@@ -1,0 +1,51 @@
+version: 2
+project_name: atrib-log-pp-cli
+changelog:
+  disable: true
+builds:
+  - id: atrib-log-pp-cli
+    main: ./cmd/atrib-log-pp-cli
+    binary: atrib-log-pp-cli
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X atrib-log-pp-cli/internal/cli.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+  - id: atrib-log-pp-mcp
+    main: ./cmd/atrib-log-pp-mcp
+    binary: atrib-log-pp-mcp
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+checksum:
+  name_template: checksums.txt
+brews:
+  - name: atrib-log-pp-cli
+    repository:
+      owner: nader-helmy
+      name: homebrew-tap
+    homepage: "https://github.com/nader-helmy/atrib-log-pp-cli"
+    description: "atrib transparency log — Sigsum-style append-only Merkle log of signed agent action records. Each entry is a..."
+    install: |
+      bin.install "atrib-log-pp-cli"
+      bin.install "atrib-log-pp-mcp"

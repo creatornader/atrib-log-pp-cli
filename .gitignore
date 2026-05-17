@@ -1,0 +1,10 @@
+# Compiled binaries
+atrib-log-pp-cli
+atrib-log-pp-mcp
+build/
+dist/
+
+# Local SQLite mirror + caches
+*.db
+*.db-journal
+.cache/
