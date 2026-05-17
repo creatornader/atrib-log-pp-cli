@@ -1,0 +1,20 @@
+# Typos check allowlist for atrib-log-pp-cli.
+#
+# Both entries below are intentional in Printing-Press-generated code:
+# - `unparseable` is a valid English variant spelling (alongside
+#   `unparsable`); the generator uses the former consistently.
+# - `chanels` appears once in a code comment as an EXAMPLE of a typo
+#   that the validation logic catches. It's intentional illustrative
+#   text, not a real typo.
+#
+# These would otherwise be reported upstream to Printing Press; the
+# allowlist here is the operational compromise.
+
+[default.extend-words]
+unparseable = "unparseable"
+
+[files]
+extend-exclude = [
+    "internal/cli/helpers.go",  # contains intentional "chanels" typo in a comment
+    "go.sum",                    # hashes, not English
+]
