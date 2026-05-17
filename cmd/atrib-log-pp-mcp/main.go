@@ -14,7 +14,7 @@ import (
 func main() {
 	s := server.NewMCPServer(
 		"Log Atrib Dev",
-		"1.0.0",
+		"0.1.0",
 		server.WithToolCapabilities(false),
 	)
 

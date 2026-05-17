@@ -1,0 +1,40 @@
+# Dependabot config for atrib-log-pp-cli.
+#
+# Why: tracks two ecosystems that drift independently and matter for
+# this CLI's security posture:
+#
+# 1. github-actions — action major-versions don't synchronize across
+#    actions, so manually auditing every repo before each Node-runtime
+#    deprecation is routine emergency work (e.g., the May 2026 Node 20
+#    to 24 sweep across four repos). A weekly grouped PR flips that
+#    from "audit + bump" to "merge this PR".
+#
+# 2. gomod — Go module security updates land continuously; this CLI is
+#    a Go binary that ships to operators. Bumping deps weekly keeps the
+#    binary on patched releases.
+#
+# Both groups merged to weekly cadence to minimize PR noise; security
+# advisories from gomod will open separately at their own urgency.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    groups:
+      go-deps:
+        patterns:
+          - "*"

@@ -1,6 +1,7 @@
-# Compiled binaries
-atrib-log-pp-cli
-atrib-log-pp-mcp
+# Compiled binaries at repo root (the cmd/ source dirs share the names
+# of their resulting binaries; root-anchored patterns avoid catching them)
+/atrib-log-pp-cli
+/atrib-log-pp-mcp
 build/
 dist/
 
