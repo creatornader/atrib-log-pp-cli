@@ -11,7 +11,7 @@ require modernc.org/sqlite v1.50.1
 
 require (
 	github.com/mark3labs/mcp-go v0.54.0
-	github.com/spf13/pflag v1.0.9
+	github.com/spf13/pflag v1.0.10
 )
 
 require (
