@@ -1,0 +1,50 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+    # Docs-only pushes don't need to retrigger the full CI matrix.
+    # Tests run on PRs unconditionally so docs PRs still get a green
+    # check before merge.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/dependabot.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same ref so a force-push or fast PR push
+# doesn't queue duplicate work.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimum permissions needed for the test workflow — checkout reads contents only.
+# Explicit block satisfies CodeQL actions/missing-workflow-permissions and reduces
+# blast radius if any action is ever compromised.
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: go (test + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -race ./...
+
+      - name: go build
+        run: go build ./...
