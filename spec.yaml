@@ -3,9 +3,10 @@ info:
   title: log.atrib.dev
   version: "1.0"
   description: |
-    atrib transparency log — Sigsum-style append-only Merkle log of signed
+    atrib transparency log - Sigsum-style append-only Merkle log of signed
     agent action records. Each entry is a cryptographically signed record
-    of an LLM agent action (tool call, observation, annotation, revision).
+    of an LLM agent action (tool call, transaction, observation, annotation,
+    revision, or directory anchor).
 servers:
   - url: https://log.atrib.dev
 paths:
@@ -30,6 +31,25 @@ paths:
       responses:
         "200":
           description: Log public key (Ed25519, base64)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  origin: { type: string }
+                  public_key: { type: string }
+                  key_id: { type: string }
+                  algorithm: { type: string }
+  /v1/log-pubkey:
+    get:
+      summary: Get C2SP signed-note public key
+      description: |
+        Returns the log public key in C2SP signed-note vkey format:
+        <origin>+<hex(key_id)>+<base64(0x01 || public_key)>.
+      operationId: getLogPubkey
+      responses:
+        "200":
+          description: Log public key in signed-note vkey format
           content:
             text/plain:
               schema: { type: string }
@@ -101,6 +121,28 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Entry" }
+        "404":
+          description: Hash not found in log
+  /v1/proof/{hex}:
+    get:
+      summary: Recover inclusion proof by record hash
+      description: |
+        Returns a fresh inclusion-proof bundle for a record that is already
+        included in the log. This is read-only and does not require the signed
+        record body.
+      operationId: getProofByHash
+      parameters:
+        - name: hex
+          in: path
+          required: true
+          description: SHA-256 hex (no `sha256:` prefix)
+          schema: { type: string, pattern: "^[0-9a-f]{64}$" }
+      responses:
+        "200":
+          description: Inclusion-proof bundle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProofBundle" }
         "404":
           description: Hash not found in log
   /v1/by-context/{hex}:
@@ -190,29 +232,90 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Entry" }
+  /v1/feed.json:
+    get:
+      summary: JSON Feed of log entries
+      description: |
+        JSON Feed 1.1 companion for consumers that cannot hold a long-lived
+        Server-Sent Events connection. Items are newest-first and carry the
+        decoded log entry in `_atrib`.
+      operationId: getJsonFeed
+      parameters:
+        - $ref: "#/components/parameters/CreatorKeyFilter"
+        - $ref: "#/components/parameters/ContextIdFilter"
+        - $ref: "#/components/parameters/EventTypeFilter"
+        - $ref: "#/components/parameters/SinceFilter"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: JSON Feed 1.1 document
+          content:
+            application/feed+json:
+              schema: { $ref: "#/components/schemas/JsonFeed" }
+  /v1/stream:
+    get:
+      summary: Stream new log entries as Server-Sent Events
+      description: |
+        Opens a Server-Sent Events stream. The stream emits a ready event and
+        then log_entry events for new decoded log entries.
+      operationId: streamLogEntries
+      parameters:
+        - $ref: "#/components/parameters/CreatorKeyFilter"
+        - $ref: "#/components/parameters/ContextIdFilter"
+        - $ref: "#/components/parameters/EventTypeFilter"
+        - $ref: "#/components/parameters/SinceFilter"
+      responses:
+        "200":
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema: { type: string }
   /v1/entries:
     post:
       summary: Append a signed entry
       description: |
         Write path. Submit a signed record for inclusion in the log.
-        Returns the assigned index + record_hash on success.
+        Returns a fresh inclusion-proof bundle on success.
       operationId: postEntry
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/EntrySubmission" }
+            schema: { $ref: "#/components/schemas/AtribRecord" }
       responses:
-        "201":
-          description: Entry accepted, included in next checkpoint
+        "200":
+          description: Entry accepted and proof bundle returned
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  index: { type: integer }
-                  record_hash: { type: string }
+              schema: { $ref: "#/components/schemas/ProofBundle" }
 components:
+  parameters:
+    CreatorKeyFilter:
+      name: creator_key
+      in: query
+      schema: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
+    ContextIdFilter:
+      name: context_id
+      in: query
+      schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+    EventTypeFilter:
+      name: event_type
+      in: query
+      schema:
+        type: string
+        enum: [tool_call, observation, annotation, revision, transaction, directory_anchor, extension, reserved]
+    SinceFilter:
+      name: since
+      in: query
+      schema:
+        oneOf:
+          - { type: string, format: date-time }
+          - { type: string, pattern: "^[0-9]+$" }
   schemas:
     Entry:
       type: object
@@ -226,8 +329,54 @@ components:
           type: string
           enum: [tool_call, observation, annotation, revision, transaction, directory_anchor, extension, reserved]
         event_type_byte: { type: integer }
-    EntrySubmission:
+    ProofBundle:
       type: object
       properties:
-        signed_payload: { type: string, description: "base64-encoded signed record bytes" }
-        signature: { type: string, description: "Ed25519 signature, base64" }
+        log_index: { type: integer }
+        checkpoint: { type: string }
+        inclusion_proof:
+          type: array
+          items: { type: string }
+        leaf_hash: { type: string }
+    JsonFeed:
+      type: object
+      properties:
+        version: { type: string }
+        title: { type: string }
+        home_page_url: { type: string }
+        feed_url: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              url: { type: string }
+              title: { type: string }
+              content_text: { type: string }
+              date_published: { type: string, format: date-time }
+              _atrib: { $ref: "#/components/schemas/Entry" }
+        _atrib:
+          type: object
+          additionalProperties: true
+    AtribRecord:
+      type: object
+      properties:
+        spec_version: { type: string, example: "atrib/1.0" }
+        event_type: { type: string, example: "https://atrib.dev/v1/types/tool_call" }
+        context_id: { type: string, pattern: "^[0-9a-f]{32}$" }
+        creator_key: { type: string, description: "base64url-encoded Ed25519 public key" }
+        chain_root: { type: string, example: "sha256:..." }
+        content_id: { type: string, example: "sha256:..." }
+        timestamp: { type: integer }
+        signature: { type: string, description: "Ed25519 signature, base64url" }
+        informed_by:
+          type: array
+          items: { type: string, example: "sha256:..." }
+        provenance_token: { type: string }
+        session_token: { type: string }
+        args_hash: { type: string, example: "sha256:..." }
+        result_hash: { type: string, example: "sha256:..." }
+        tool_name: { type: string }
+      required: [spec_version, event_type, context_id, creator_key, chain_root, content_id, timestamp, signature]
+      additionalProperties: true

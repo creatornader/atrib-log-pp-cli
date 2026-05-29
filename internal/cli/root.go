@@ -87,7 +87,7 @@ func Execute() error {
 		// missing required, etc.) never flow through usageErr() because
 		// they originate inside rootCmd.Execute() before any user RunE
 		// runs. Without this wrap, ExitCode() falls through to the
-		// default and emits 1 — clobbering the conventional code-2 for
+		// default and emits 1 - clobbering the conventional code-2 for
 		// usage errors that the helpers.go contract already promises.
 		return usageErr(err)
 	}
@@ -229,10 +229,16 @@ Run 'atrib-log-pp-cli doctor' to verify auth and connectivity.`,
 	rootCmd.AddCommand(newByCreatorPromotedCmd(flags))
 	rootCmd.AddCommand(newCheckpointPromotedCmd(flags))
 	rootCmd.AddCommand(newEntriesPromotedCmd(flags))
+	// PATCH: keep promoted log-node endpoints in the command tree until
+	// Printing Press can safely regenerate inside an existing git checkout.
+	rootCmd.AddCommand(newFeedJsonPromotedCmd(flags))
+	rootCmd.AddCommand(newLogPubkeyPromotedCmd(flags))
 	rootCmd.AddCommand(newLookupPromotedCmd(flags))
+	rootCmd.AddCommand(newProofPromotedCmd(flags))
 	rootCmd.AddCommand(newPubkeyPromotedCmd(flags))
 	rootCmd.AddCommand(newRecentPromotedCmd(flags))
 	rootCmd.AddCommand(newStatsPromotedCmd(flags))
+	rootCmd.AddCommand(newStreamPromotedCmd(flags))
 	rootCmd.AddCommand(newVersionCliCmd())
 
 	return rootCmd

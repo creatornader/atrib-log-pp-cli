@@ -1,6 +1,6 @@
 ---
 name: pp-atrib-log
-description: "Printing Press CLI for Atrib Log. atrib transparency log — Sigsum-style append-only Merkle log of signed agent action records. Each entry is a..."
+description: "Printing Press CLI for Atrib Log. atrib transparency log - Sigsum-style append-only Merkle log of signed agent action records. Each entry is a..."
 author: "Nader Helmy"
 license: "Apache-2.0"
 argument-hint: "<command> [args] | install cli|mcp"
@@ -12,7 +12,7 @@ metadata:
         - atrib-log-pp-cli
 ---
 
-# Atrib Log — Printing Press CLI
+# Atrib Log - Printing Press CLI
 
 ## Prerequisites: Install the CLI
 
@@ -29,48 +29,65 @@ If the `npx` install fails before this CLI has a public-library category, instal
 
 If `--version` reports "command not found" after install, the install step did not put the binary on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
-atrib transparency log — Sigsum-style append-only Merkle log of signed
+atrib transparency log - Sigsum-style append-only Merkle log of signed
 agent action records. Each entry is a cryptographically signed record
-of an LLM agent action (tool call, observation, annotation, revision).
+of an LLM agent action (tool call, transaction, observation, annotation,
+revision, or directory anchor).
 
 ## Command Reference
 
-**by-context** — Manage by context
+**by-context** - Manage by context
 
-- `atrib-log-pp-cli by-context <hex>` — All entries in a context (session)
+- `atrib-log-pp-cli by-context <hex>` - All entries in a context (session)
 
-**by-creator** — Manage by creator
+**by-creator** - Manage by creator
 
-- `atrib-log-pp-cli by-creator <key>` — All entries by signer (creator key)
+- `atrib-log-pp-cli by-creator <key>` - All entries by signer (creator key)
 
-**checkpoint** — Manage checkpoint
+**checkpoint** - Manage checkpoint
 
-- `atrib-log-pp-cli checkpoint` — Returns the current signed checkpoint (tree size + root hash + log signature). Use this to anchor your local view of...
+- `atrib-log-pp-cli checkpoint` - Returns the current signed checkpoint (tree size + root hash + log signature). Use this to anchor your local view of...
 
-**entries** — Manage entries
+**entries** - Manage entries
 
-- `atrib-log-pp-cli entries` — Write path. Submit a signed record for inclusion in the log. Returns the assigned index + record_hash on success.
+- `atrib-log-pp-cli entries` - Write path. Submit a signed record for inclusion in the log. Returns an inclusion-proof bundle on success.
 
-**lookup** — Manage lookup
+**feed-json** - Manage JSON Feed
 
-- `atrib-log-pp-cli lookup <hex>` — Lookup entry by record hash
+- `atrib-log-pp-cli feed-json` - JSON Feed 1.1 companion for newest-first decoded log entries.
 
-**pubkey** — Manage pubkey
+**log-pubkey** - Manage C2SP log public key
 
-- `atrib-log-pp-cli pubkey` — Get verification public key
+- `atrib-log-pp-cli log-pubkey` - Get the log public key in signed-note vkey format.
 
-**recent** — Manage recent
+**lookup** - Manage lookup
 
-- `atrib-log-pp-cli recent` — Most recent entries
+- `atrib-log-pp-cli lookup <hex>` - Lookup entry by record hash
 
-**stats** — Manage stats
+**proof** - Manage proof recovery
 
-- `atrib-log-pp-cli stats` — Tree statistics
+- `atrib-log-pp-cli proof <hex>` - Recover an inclusion-proof bundle for a record already in the log.
 
-**tile** — Manage tile
+**pubkey** - Manage pubkey
 
-- `atrib-log-pp-cli tile get` — Sigsum-style Merkle tile at level L, position N
-- `atrib-log-pp-cli tile get-entries` — Get entries within a tile (leaf-level)
+- `atrib-log-pp-cli pubkey` - Get verification public key
+
+**recent** - Manage recent
+
+- `atrib-log-pp-cli recent` - Most recent entries
+
+**stats** - Manage stats
+
+- `atrib-log-pp-cli stats` - Tree statistics
+
+**stream** - Manage SSE stream
+
+- `atrib-log-pp-cli stream` - Stream new decoded log entries as raw Server-Sent Events.
+
+**tile** - Manage tile
+
+- `atrib-log-pp-cli tile get` - Sigsum-style Merkle tile at level L, position N
+- `atrib-log-pp-cli tile get-entries` - Get entries within a tile (leaf-level)
 
 
 ### Finding the right command
@@ -81,7 +98,7 @@ When you know what you want to do but not which command does it, ask the CLI dir
 atrib-log-pp-cli which "<capability in your own words>"
 ```
 
-`which` resolves a natural-language capability query to the best matching command from this CLI's curated feature index. Exit code `0` means at least one match; exit code `2` means no confident match — fall back to `--help` or use a narrower query.
+`which` resolves a natural-language capability query to the best matching command from this CLI's curated feature index. Exit code `0` means at least one match; exit code `2` means no confident match - fall back to `--help` or use a narrower query.
 
 ## Auth Setup
 
@@ -93,16 +110,16 @@ Run `atrib-log-pp-cli doctor` to verify setup.
 
 Add `--agent` to any command. Expands to: `--json --compact --no-input --no-color --yes`.
 
-- **Pipeable** — JSON on stdout, errors on stderr
-- **Filterable** — `--select` keeps a subset of fields. Dotted paths descend into nested structures; arrays traverse element-wise. Critical for keeping context small on verbose APIs:
+- **Pipeable** - JSON on stdout, errors on stderr
+- **Filterable** - `--select` keeps a subset of fields. Dotted paths descend into nested structures; arrays traverse element-wise. Critical for keeping context small on verbose APIs:
 
   ```bash
   atrib-log-pp-cli by-context mock-value --agent --select id,name,status
   ```
-- **Previewable** — `--dry-run` shows the request without sending
-- **Offline-friendly** — sync/search commands can use the local SQLite store when available
-- **Non-interactive** — never prompts, every input is a flag
-- **Explicit retries** — use `--idempotent` only when an already-existing create should count as success
+- **Previewable** - `--dry-run` shows the request without sending
+- **Offline-friendly** - sync/search commands can use the local SQLite store when available
+- **Non-interactive** - never prompts, every input is a flag
+- **Explicit retries** - use `--idempotent` only when an already-existing create should count as success
 
 ### Response envelope
 
@@ -115,7 +132,7 @@ Commands that read from the local store or the API wrap output in a provenance e
 }
 ```
 
-Parse `.results` for data and `.meta.source` to know whether it's live or local. A human-readable `N results (live)` summary is printed to stderr only when stdout is a terminal AND no machine-format flag (`--json`, `--csv`, `--compact`, `--quiet`, `--plain`, `--select`) is set — piped/agent consumers and explicit-format runs get pure JSON on stdout.
+Parse `.results` for data and `.meta.source` to know whether it's live or local. A human-readable `N results (live)` summary is printed to stderr only when stdout is a terminal AND no machine-format flag (`--json`, `--csv`, `--compact`, `--quiet`, `--plain`, `--select`) is set - piped/agent consumers and explicit-format runs get pure JSON on stdout.
 
 ## Agent Feedback
 

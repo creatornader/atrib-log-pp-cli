@@ -466,7 +466,7 @@ func TestOpenReadOnly_RejectsWrites(t *testing.T) {
 		{"update", `UPDATE resources SET resource_type = 'hijacked' WHERE id = 'seed'`},
 		{"delete", `DELETE FROM resources WHERE id = 'seed'`},
 		{"replace", `REPLACE INTO resources (id, resource_type, data) VALUES ('seed', 'evil', '{}')`},
-		// CTE-wrapped INSERT is load-bearing: it justifies leaving WITH
+		// CTE-wrapped INSERT is decision-critical: it justifies leaving WITH
 		// out of the handleSQL blocklist so SELECT-form CTEs work.
 		{"cte_insert", `WITH stale AS (SELECT id FROM resources) INSERT INTO resources (id, resource_type, data) SELECT id || '-evil', 'thing', '{}' FROM stale`},
 	}

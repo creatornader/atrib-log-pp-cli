@@ -12,16 +12,52 @@ import (
 )
 
 func newEntriesPromotedCmd(flags *rootFlags) *cobra.Command {
+	var bodyArgsHash string
+	var bodyChainRoot string
+	var bodyContentId string
+	var bodyContextId string
+	var bodyCreatorKey string
+	var bodyEventType string
+	var bodyInformedBy string
+	var bodyProvenanceToken string
+	var bodyResultHash string
+	var bodySessionToken string
 	var bodySignature string
-	var bodySignedPayload string
+	var bodySpecVersion string
+	var bodyTimestamp int
+	var bodyToolName string
 
 	cmd := &cobra.Command{
 		Use:         "entries",
-		Short:       "Write path. Submit a signed record for inclusion in the log. Returns the assigned index + record_hash on success.",
-		Long:        "Shortcut for 'entries post-entry'. Write path. Submit a signed record for inclusion in the log. Returns the assigned index + record_hash on success.",
-		Example:     "  atrib-log-pp-cli entries",
+		Short:       "Write path. Submit a signed record for inclusion in the log. Returns a fresh inclusion-proof bundle on success.",
+		Long:        "Shortcut for 'entries post-entry'. Write path. Submit a signed record for inclusion in the log. Returns a fresh inclusion-proof bundle on success.",
+		Example:     "  atrib-log-pp-cli entries --chain-root example-value",
 		Annotations: map[string]string{"pp:endpoint": "entries.post-entry", "pp:method": "POST", "pp:path": "/v1/entries"},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !cmd.Flags().Changed("chain-root") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "chain-root")
+			}
+			if !cmd.Flags().Changed("content-id") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "content-id")
+			}
+			if !cmd.Flags().Changed("context-id") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "context-id")
+			}
+			if !cmd.Flags().Changed("creator-key") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "creator-key")
+			}
+			if !cmd.Flags().Changed("event-type") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "event-type")
+			}
+			if !cmd.Flags().Changed("signature") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "signature")
+			}
+			if !cmd.Flags().Changed("spec-version") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "spec-version")
+			}
+			if !cmd.Flags().Changed("timestamp") && !flags.dryRun {
+				return fmt.Errorf("required flag \"%s\" not set", "timestamp")
+			}
 			c, err := flags.newClient()
 			if err != nil {
 				return err
@@ -34,11 +70,51 @@ func newEntriesPromotedCmd(flags *rootFlags) *cobra.Command {
 			// body-aware cached read helper is filed as #425 for when a
 			// second store-backed POST-search consumer ships.
 			body := map[string]any{}
+			if bodyArgsHash != "" {
+				body["args_hash"] = bodyArgsHash
+			}
+			if bodyChainRoot != "" {
+				body["chain_root"] = bodyChainRoot
+			}
+			if bodyContentId != "" {
+				body["content_id"] = bodyContentId
+			}
+			if bodyContextId != "" {
+				body["context_id"] = bodyContextId
+			}
+			if bodyCreatorKey != "" {
+				body["creator_key"] = bodyCreatorKey
+			}
+			if bodyEventType != "" {
+				body["event_type"] = bodyEventType
+			}
+			if bodyInformedBy != "" {
+				var parsedInformedBy any
+				if err := json.Unmarshal([]byte(bodyInformedBy), &parsedInformedBy); err != nil {
+					return fmt.Errorf("parsing --informed-by JSON: %w", err)
+				}
+				body["informed_by"] = parsedInformedBy
+			}
+			if bodyProvenanceToken != "" {
+				body["provenance_token"] = bodyProvenanceToken
+			}
+			if bodyResultHash != "" {
+				body["result_hash"] = bodyResultHash
+			}
+			if bodySessionToken != "" {
+				body["session_token"] = bodySessionToken
+			}
 			if bodySignature != "" {
 				body["signature"] = bodySignature
 			}
-			if bodySignedPayload != "" {
-				body["signed_payload"] = bodySignedPayload
+			if bodySpecVersion != "" {
+				body["spec_version"] = bodySpecVersion
+			}
+			if bodyTimestamp != 0 {
+				body["timestamp"] = bodyTimestamp
+			}
+			if bodyToolName != "" {
+				body["tool_name"] = bodyToolName
 			}
 			data, _, err := c.PostWithParams(path, params, body)
 
@@ -96,8 +172,20 @@ func newEntriesPromotedCmd(flags *rootFlags) *cobra.Command {
 			return printOutputWithFlags(cmd.OutOrStdout(), data, flags)
 		},
 	}
-	cmd.Flags().StringVar(&bodySignature, "signature", "", "Ed25519 signature, base64")
-	cmd.Flags().StringVar(&bodySignedPayload, "signed-payload", "", "base64-encoded signed record bytes")
+	cmd.Flags().StringVar(&bodyArgsHash, "args-hash", "", "Args hash")
+	cmd.Flags().StringVar(&bodyChainRoot, "chain-root", "", "Chain root")
+	cmd.Flags().StringVar(&bodyContentId, "content-id", "", "Content id")
+	cmd.Flags().StringVar(&bodyContextId, "context-id", "", "Context id")
+	cmd.Flags().StringVar(&bodyCreatorKey, "creator-key", "", "base64url-encoded Ed25519 public key")
+	cmd.Flags().StringVar(&bodyEventType, "event-type", "", "Event type")
+	cmd.Flags().StringVar(&bodyInformedBy, "informed-by", "", "Informed by")
+	cmd.Flags().StringVar(&bodyProvenanceToken, "provenance-token", "", "Provenance token")
+	cmd.Flags().StringVar(&bodyResultHash, "result-hash", "", "Result hash")
+	cmd.Flags().StringVar(&bodySessionToken, "session-token", "", "Session token")
+	cmd.Flags().StringVar(&bodySignature, "signature", "", "Ed25519 signature, base64url")
+	cmd.Flags().StringVar(&bodySpecVersion, "spec-version", "", "Spec version")
+	cmd.Flags().IntVar(&bodyTimestamp, "timestamp", 0, "Timestamp")
+	cmd.Flags().StringVar(&bodyToolName, "tool-name", "", "Tool name")
 
 	// Wire sibling endpoints and sub-resources as subcommands
 
