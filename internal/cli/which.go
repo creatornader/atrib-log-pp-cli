@@ -30,11 +30,17 @@ var whichIndex = []whichEntry{
 	{Command: "by-context list", Description: "All entries in a context (session)", Group: "by-context"},
 	{Command: "by-creator list", Description: "All entries by signer (creator key)", Group: "by-creator"},
 	{Command: "checkpoint get", Description: "Returns the current signed checkpoint (tree size + root hash +\nlog signature). Use this to anchor your local view of the log\nand verify inclusion proofs.", Group: "checkpoint"},
-	{Command: "entries post-entry", Description: "Write path. Submit a signed record for inclusion in the log.\nReturns the assigned index + record_hash on success.", Group: "entries"},
+	{Command: "entries post-entry", Description: "Write path. Submit a signed record for inclusion in the log.\nReturns a fresh inclusion-proof bundle on success.", Group: "entries"},
+	// PATCH: advertise current log-node endpoints that were added after the
+	// original generated CLI was published.
+	{Command: "feed-json get-json-feed", Description: "JSON Feed 1.1 companion for consumers that cannot hold a long-lived\nServer-Sent Events connection. Items are newest-first and carry the\ndecoded log entry in `_atrib`.", Group: "feed-json"},
+	{Command: "log-pubkey get", Description: "Get the log public key in C2SP signed-note vkey format.", Group: "log-pubkey"},
 	{Command: "lookup by-hash", Description: "Lookup entry by record hash", Group: "lookup"},
+	{Command: "proof get-by-hash", Description: "Recover an inclusion-proof bundle for a record already included in the log.", Group: "proof"},
 	{Command: "pubkey get", Description: "Get verification public key", Group: "pubkey"},
 	{Command: "recent list", Description: "Most recent entries", Group: "recent"},
 	{Command: "stats get", Description: "Tree statistics", Group: "stats"},
+	{Command: "stream log-entries", Description: "Stream new decoded log entries as Server-Sent Events.", Group: "stream"},
 	{Command: "tile get", Description: "Sigsum-style Merkle tile at level L, position N", Group: "tile"},
 	{Command: "tile get-entries", Description: "Get entries within a tile (leaf-level)", Group: "tile"},
 }

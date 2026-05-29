@@ -57,13 +57,50 @@ func RegisterTools(s *server.MCPServer) {
 	)
 	s.AddTool(
 		mcplib.NewTool("entries_post-entry",
-			mcplib.WithDescription("Write path. Submit a signed record for inclusion in the log. Returns the assigned index + record_hash on success. Optional: signature, signed_payload."),
-			mcplib.WithString("signature", mcplib.Description("Ed25519 signature, base64")),
-			mcplib.WithString("signed_payload", mcplib.Description("base64-encoded signed record bytes")),
+			mcplib.WithDescription("Write path. Submit a signed record for inclusion in the log. Returns a fresh inclusion-proof bundle on success. Required: chain_root, content_id, context_id, creator_key, event_type, signature, spec_version, timestamp. Optional: args_hash, provenance_token, result_hash, session_token, tool_name."),
+			mcplib.WithString("args_hash", mcplib.Description("Args hash")),
+			mcplib.WithString("chain_root", mcplib.Required(), mcplib.Description("Chain root")),
+			mcplib.WithString("content_id", mcplib.Required(), mcplib.Description("Content id")),
+			mcplib.WithString("context_id", mcplib.Required(), mcplib.Description("Context id")),
+			mcplib.WithString("creator_key", mcplib.Required(), mcplib.Description("base64url-encoded Ed25519 public key")),
+			mcplib.WithString("event_type", mcplib.Required(), mcplib.Description("Event type")),
+			mcplib.WithString("provenance_token", mcplib.Description("Provenance token")),
+			mcplib.WithString("result_hash", mcplib.Description("Result hash")),
+			mcplib.WithString("session_token", mcplib.Description("Session token")),
+			mcplib.WithString("signature", mcplib.Required(), mcplib.Description("Ed25519 signature, base64url")),
+			mcplib.WithString("spec_version", mcplib.Required(), mcplib.Description("Spec version")),
+			mcplib.WithNumber("timestamp", mcplib.Required(), mcplib.Description("Timestamp")),
+			mcplib.WithString("tool_name", mcplib.Description("Tool name")),
 			mcplib.WithDestructiveHintAnnotation(false),
 			mcplib.WithOpenWorldHintAnnotation(true),
 		),
-		makeAPIHandler("POST", "/v1/entries", false, []mcpParamBinding{{PublicName: "signature", WireName: "signature", Location: "body"}, {PublicName: "signed_payload", WireName: "signed_payload", Location: "body"}}, []string{}),
+		makeAPIHandler("POST", "/v1/entries", false, []mcpParamBinding{{PublicName: "args_hash", WireName: "args_hash", Location: "body"}, {PublicName: "chain_root", WireName: "chain_root", Location: "body"}, {PublicName: "content_id", WireName: "content_id", Location: "body"}, {PublicName: "context_id", WireName: "context_id", Location: "body"}, {PublicName: "creator_key", WireName: "creator_key", Location: "body"}, {PublicName: "event_type", WireName: "event_type", Location: "body"}, {PublicName: "provenance_token", WireName: "provenance_token", Location: "body"}, {PublicName: "result_hash", WireName: "result_hash", Location: "body"}, {PublicName: "session_token", WireName: "session_token", Location: "body"}, {PublicName: "signature", WireName: "signature", Location: "body"}, {PublicName: "spec_version", WireName: "spec_version", Location: "body"}, {PublicName: "timestamp", WireName: "timestamp", Location: "body"}, {PublicName: "tool_name", WireName: "tool_name", Location: "body"}}, []string{}),
+	)
+	// PATCH: expose log-node endpoints added after the original generated MCP
+	// surface. Keep stream out of MCP because it is an infinite SSE response.
+	s.AddTool(
+		mcplib.NewTool("feed-json_get-json-feed",
+			mcplib.WithDescription("JSON Feed 1.1 companion for consumers that cannot hold a long-lived Server-Sent Events connection. Optional: creator_key, context_id, event_type, since, limit, offset."),
+			mcplib.WithString("creator_key", mcplib.Description("Creator key")),
+			mcplib.WithString("context_id", mcplib.Description("Context id")),
+			mcplib.WithString("event_type", mcplib.Description("Event type")),
+			mcplib.WithString("since", mcplib.Description("Since")),
+			mcplib.WithNumber("limit", mcplib.Description("Limit")),
+			mcplib.WithNumber("offset", mcplib.Description("Offset")),
+			mcplib.WithReadOnlyHintAnnotation(true),
+			mcplib.WithDestructiveHintAnnotation(false),
+			mcplib.WithOpenWorldHintAnnotation(true),
+		),
+		makeAPIHandler("GET", "/v1/feed.json", false, []mcpParamBinding{{PublicName: "creator_key", WireName: "creator_key", Location: "query"}, {PublicName: "context_id", WireName: "context_id", Location: "query"}, {PublicName: "event_type", WireName: "event_type", Location: "query"}, {PublicName: "since", WireName: "since", Location: "query"}, {PublicName: "limit", WireName: "limit", Location: "query"}, {PublicName: "offset", WireName: "offset", Location: "query"}}, []string{}),
+	)
+	s.AddTool(
+		mcplib.NewTool("log-pubkey_get",
+			mcplib.WithDescription("Get the log public key in C2SP signed-note vkey format."),
+			mcplib.WithReadOnlyHintAnnotation(true),
+			mcplib.WithDestructiveHintAnnotation(false),
+			mcplib.WithOpenWorldHintAnnotation(true),
+		),
+		makeAPIHandler("GET", "/v1/log-pubkey", false, []mcpParamBinding{}, []string{}),
 	)
 	s.AddTool(
 		mcplib.NewTool("lookup_by-hash",
@@ -74,6 +111,16 @@ func RegisterTools(s *server.MCPServer) {
 			mcplib.WithOpenWorldHintAnnotation(true),
 		),
 		makeAPIHandler("GET", "/v1/lookup/{hex}", false, []mcpParamBinding{{PublicName: "hex", WireName: "hex", Location: "path"}}, []string{"hex"}),
+	)
+	s.AddTool(
+		mcplib.NewTool("proof_get-by-hash",
+			mcplib.WithDescription("Recover an inclusion-proof bundle for a record that is already included in the log. Required: hex."),
+			mcplib.WithString("hex", mcplib.Required(), mcplib.Description("SHA-256 hex (no `sha256:` prefix)")),
+			mcplib.WithReadOnlyHintAnnotation(true),
+			mcplib.WithDestructiveHintAnnotation(false),
+			mcplib.WithOpenWorldHintAnnotation(true),
+		),
+		makeAPIHandler("GET", "/v1/proof/{hex}", false, []mcpParamBinding{{PublicName: "hex", WireName: "hex", Location: "path"}}, []string{"hex"}),
 	)
 	s.AddTool(
 		mcplib.NewTool("pubkey_get",
@@ -125,7 +172,7 @@ func RegisterTools(s *server.MCPServer) {
 		),
 		makeAPIHandler("GET", "/v1/tile/entries/{n}", false, []mcpParamBinding{{PublicName: "n", WireName: "n", Location: "path"}}, []string{"n"}),
 	)
-	// Search tool — faster than iterating list endpoints for finding specific items
+	// Search tool - faster than iterating list endpoints for finding specific items
 	s.AddTool(
 		mcplib.NewTool("search",
 			mcplib.WithDescription("Full-text search across all synced data. Faster than paginating list endpoints. Requires sync first."),
@@ -136,7 +183,7 @@ func RegisterTools(s *server.MCPServer) {
 		),
 		handleSearch,
 	)
-	// SQL tool — ad-hoc analysis on synced data without API calls
+	// SQL tool - ad-hoc analysis on synced data without API calls
 	s.AddTool(
 		mcplib.NewTool("sql",
 			mcplib.WithDescription("Run read-only SQL against local database. Use for ad-hoc analysis, aggregations, and joins across synced resources. Requires sync first."),
@@ -147,7 +194,7 @@ func RegisterTools(s *server.MCPServer) {
 		handleSQL,
 	)
 
-	// Context tool — front-loaded domain knowledge for agents.
+	// Context tool - front-loaded domain knowledge for agents.
 	// Call this first to understand the API taxonomy, query patterns, and capabilities.
 	s.AddTool(
 		mcplib.NewTool("context",
@@ -158,7 +205,7 @@ func RegisterTools(s *server.MCPServer) {
 		handleContext,
 	)
 
-	// Runtime Cobra-tree mirror — exposes every user-facing command that is
+	// Runtime Cobra-tree mirror - exposes every user-facing command that is
 	// not already covered by a typed endpoint or framework MCP tool.
 	cobratree.RegisterAll(s, cli.RootCmd(), cobratree.SiblingCLIPath)
 }
@@ -383,7 +430,7 @@ func handleSearch(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.Call
 // leading whitespace, line comments, block comments, and semicolons that
 // SQLite itself ignores before parsing. A naive HasPrefix check on a
 // keyword blocklist is bypassable by prefixing the dangerous statement with
-// "/* x */" or "-- x\n" — TrimSpace strips outer whitespace but does not
+// "/* x */" or "-- x\n" - TrimSpace strips outer whitespace but does not
 // understand SQL comment syntax. Combined with the empirical fact that
 // modernc.org/sqlite's mode=ro does NOT block VACUUM INTO (writes a snapshot
 // to a new file) or ATTACH DATABASE (opens a separate writable handle),
@@ -474,9 +521,9 @@ func handleSQL(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToo
 func handleContext(_ context.Context, _ mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
 	ctx := map[string]any{
 		"api":         "atrib-log",
-		"description": "atrib transparency log — Sigsum-style append-only Merkle log of signed agent action records. Each entry is a...",
+		"description": "atrib transparency log - Sigsum-style append-only Merkle log of signed agent action records. Each entry is a...",
 		"archetype":   "generic",
-		"tool_count":  10,
+		"tool_count":  13,
 		// tool_surface tells agents which surface a capability lives on.
 		"tool_surface": "MCP exposes typed endpoint tools plus a runtime mirror of user-facing CLI commands. Endpoint tools keep typed schemas; command-mirror tools shell out to the companion atrib-log-pp-cli binary.",
 		"resources": []map[string]any{
@@ -504,9 +551,27 @@ func handleContext(_ context.Context, _ mcplib.CallToolRequest) (*mcplib.CallToo
 				"searchable":  true,
 			},
 			{
+				"name":        "feed-json",
+				"description": "Manage feed json",
+				"endpoints":   []string{"get-json-feed"},
+				"syncable":    true,
+				"searchable":  true,
+			},
+			{
+				"name":        "log-pubkey",
+				"description": "Manage log pubkey",
+				"endpoints":   []string{"get"},
+			},
+			{
 				"name":        "lookup",
 				"description": "Manage lookup",
 				"endpoints":   []string{"by-hash"},
+				"searchable":  true,
+			},
+			{
+				"name":        "proof",
+				"description": "Manage proof",
+				"endpoints":   []string{"get-by-hash"},
 				"searchable":  true,
 			},
 			{

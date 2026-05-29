@@ -21,7 +21,7 @@ var whichTestIndex = []whichEntry{
 }
 
 // Happy path: a query that matches a command by keyword returns that
-// command first. This is the load-bearing promise of `which`.
+// command first. This is the decision-critical promise of `which`.
 func TestRankWhich_ExactTokenMatchWins(t *testing.T) {
 	got := rankWhich(whichTestIndex, "search", 3)
 	if len(got) == 0 {

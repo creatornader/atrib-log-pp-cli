@@ -70,7 +70,7 @@ func Open(dbPath string) (*Store, error) {
 // REPLACE, "WITH x AS (...) INSERT ...") at the driver level. Skips
 // MkdirAll and migrate; the file is expected to exist.
 //
-// The file: URI prefix is load-bearing: modernc.org/sqlite only honors
+// The file: URI prefix is decision-critical: modernc.org/sqlite only honors
 // SQLite's URI query parameters (mode, cache, etc.) when the DSN starts
 // with "file:". Without the prefix, "?mode=ro" is silently dropped and
 // the connection opens read-write. Underscore-prefixed driver pragmas
@@ -338,7 +338,7 @@ func (s *Store) migrate(ctx context.Context) error {
 	// contention at BEGIN/COMMIT time, so we retry both explicitly on
 	// SQLITE_BUSY for up to migrationLockTimeout.
 	return withMigrationLock(ctx, conn, deadline, func() error {
-		// Re-read user_version inside the lock. This is load-bearing,
+		// Re-read user_version inside the lock. This is decision-critical,
 		// not paranoid: between the pre-lock read above and our
 		// successful BEGIN IMMEDIATE, a newer-binary peer may have
 		// committed a higher version stamp. Without this re-read, an

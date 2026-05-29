@@ -34,65 +34,51 @@ Run 'api <interface>' to see that interface's methods.`,
 
 			if len(args) > 0 {
 				target := strings.ToLower(args[0])
-				for _, child := range root.Commands() {
-					if child.Hidden && strings.ToLower(child.Name()) == target {
-						methods := child.Commands()
-						// JSON envelope: {interface, short, methods: [{name, short}, ...]}.
-						if flags.asJSON {
-							methodList := make([]map[string]any, 0, len(methods))
-							for _, method := range methods {
-								methodList = append(methodList, map[string]any{
-									"name":  method.Name(),
-									"short": method.Short,
-								})
-							}
-							return printJSONFiltered(cmd.OutOrStdout(), map[string]any{
-								"interface": child.Name(),
-								"short":     child.Short,
-								"methods":   methodList,
-							}, flags)
-						}
-						if len(methods) == 0 {
-							return child.Help()
-						}
-						fmt.Fprintf(cmd.OutOrStdout(), "%s — %s\n\nMethods:\n", child.Name(), child.Short)
+				// PATCH: promoted endpoint commands are not hidden interface
+				// parents, so collect by pp:endpoint annotation instead.
+				methods, short := collectAPIMethods(root, target)
+				if len(methods) > 0 {
+					if flags.asJSON {
+						methodList := make([]map[string]any, 0, len(methods))
 						for _, method := range methods {
-							fmt.Fprintf(cmd.OutOrStdout(), "  %-50s %s\n", child.Name()+" "+method.Name(), method.Short)
+							methodList = append(methodList, map[string]any{
+								"name":    method.Name,
+								"short":   method.Short,
+								"command": method.Command,
+							})
 						}
-						fmt.Fprintf(cmd.OutOrStdout(), "\nUse '%s-pp-cli %s <method> --help' for details.\n", "atrib-log", child.Name())
-						return nil
+						return printJSONFiltered(cmd.OutOrStdout(), map[string]any{
+							"interface": target,
+							"short":     short,
+							"methods":   methodList,
+						}, flags)
 					}
+					fmt.Fprintf(cmd.OutOrStdout(), "%s - %s\n\nMethods:\n", target, short)
+					for _, method := range methods {
+						fmt.Fprintf(cmd.OutOrStdout(), "  %-50s %s\n", method.Command, method.Short)
+					}
+					fmt.Fprintf(cmd.OutOrStdout(), "\nUse '%s <command> --help' for details.\n", root.Name())
+					return nil
 				}
 				return fmt.Errorf("interface %q not found. Run '%s-pp-cli api' to list all interfaces", args[0], "atrib-log")
 			}
 
-			// Pre-formatting human strings ahead of time would block the JSON
-			// path from emitting clean field values; build the typed slice and
-			// derive human format on print.
-			type ifaceEntry struct {
-				Name  string `json:"name"`
-				Short string `json:"short"`
-			}
-			var ifaces []ifaceEntry
-			for _, child := range root.Commands() {
-				if child.Hidden {
-					ifaces = append(ifaces, ifaceEntry{Name: child.Name(), Short: child.Short})
-				}
-			}
-			sort.Slice(ifaces, func(i, j int) bool { return ifaces[i].Name < ifaces[j].Name })
+			// PATCH: include promoted one-shot endpoint commands in addition
+			// to hidden resource parents like tile.
+			ifaces := collectAPIInterfaces(root)
 
 			// JSON envelope: {interfaces: [...], note?: "..."}.
 			if flags.asJSON {
 				out := map[string]any{"interfaces": ifaces}
 				if len(ifaces) == 0 {
-					out["interfaces"] = []ifaceEntry{}
-					out["note"] = "No hidden API interfaces found."
+					out["interfaces"] = []apiInterfaceEntry{}
+					out["note"] = "No API interfaces found."
 				}
 				return printJSONFiltered(cmd.OutOrStdout(), out, flags)
 			}
 
 			if len(ifaces) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No hidden API interfaces found.")
+				fmt.Fprintln(cmd.OutOrStdout(), "No API interfaces found.")
 				return nil
 			}
 
@@ -106,4 +92,87 @@ Run 'api <interface>' to see that interface's methods.`,
 	}
 
 	return cmd
+}
+
+type apiInterfaceEntry struct {
+	Name  string `json:"name"`
+	Short string `json:"short"`
+}
+
+type apiMethodEntry struct {
+	Name    string
+	Short   string
+	Command string
+}
+
+func collectAPIInterfaces(root *cobra.Command) []apiInterfaceEntry {
+	byName := map[string]apiInterfaceEntry{}
+	walkAPICommands(root, func(cmd *cobra.Command) {
+		endpoint := cmd.Annotations["pp:endpoint"]
+		if endpoint == "" {
+			return
+		}
+		name := apiInterfaceName(endpoint)
+		if name == "" {
+			return
+		}
+		short := cmd.Short
+		if cmd.Parent() != nil && cmd.Parent().Hidden && cmd.Parent().Name() == name {
+			short = cmd.Parent().Short
+		}
+		if _, exists := byName[name]; !exists {
+			byName[name] = apiInterfaceEntry{Name: name, Short: short}
+		}
+	})
+	out := make([]apiInterfaceEntry, 0, len(byName))
+	for _, e := range byName {
+		out = append(out, e)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+func collectAPIMethods(root *cobra.Command, target string) ([]apiMethodEntry, string) {
+	var methods []apiMethodEntry
+	short := ""
+	walkAPICommands(root, func(cmd *cobra.Command) {
+		endpoint := cmd.Annotations["pp:endpoint"]
+		if apiInterfaceName(endpoint) != target {
+			return
+		}
+		methodName := endpoint
+		if dot := strings.Index(endpoint, "."); dot >= 0 && dot < len(endpoint)-1 {
+			methodName = endpoint[dot+1:]
+		}
+		if short == "" {
+			short = cmd.Short
+			if cmd.Parent() != nil && cmd.Parent().Hidden && cmd.Parent().Name() == target {
+				short = cmd.Parent().Short
+			}
+		}
+		methods = append(methods, apiMethodEntry{
+			Name:    methodName,
+			Short:   cmd.Short,
+			Command: strings.TrimPrefix(cmd.CommandPath(), root.Name()+" "),
+		})
+	})
+	sort.Slice(methods, func(i, j int) bool { return methods[i].Name < methods[j].Name })
+	return methods, short
+}
+
+func apiInterfaceName(endpoint string) string {
+	if endpoint == "" {
+		return ""
+	}
+	if dot := strings.Index(endpoint, "."); dot >= 0 {
+		return endpoint[:dot]
+	}
+	return endpoint
+}
+
+func walkAPICommands(cmd *cobra.Command, visit func(*cobra.Command)) {
+	for _, child := range cmd.Commands() {
+		visit(child)
+		walkAPICommands(child, visit)
+	}
 }
