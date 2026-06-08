@@ -1,6 +1,6 @@
 module atrib-log-pp-cli
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/pelletier/go-toml/v2 v2.3.1
