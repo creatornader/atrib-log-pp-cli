@@ -1,6 +1,7 @@
 module atrib-log-pp-cli
 
-go 1.26.4
+// PATCH: Require the Go release that fixes GO-2026-5856 in the standard library.
+go 1.26.5
 
 require (
 	github.com/pelletier/go-toml/v2 v2.3.1

@@ -32,6 +32,14 @@
         "internal/cli/api_discovery.go"
       ],
       "validated_outcome": "atrib-log-pp-cli api lists promoted endpoints as interfaces."
+    },
+    {
+      "id": "go-stdlib-security-floor",
+      "summary": "Raise the Go toolchain floor to 1.26.5.",
+      "reason": "GO-2026-5856 affects the Go 1.26.4 standard library. The security scan identifies 1.26.5 as the fixed version.",
+      "files": [
+        "go.mod"
+      ]
     }
   ]
 }
