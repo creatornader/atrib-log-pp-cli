@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   scan:
-    uses: creatornader/oss-security-scan/.github/workflows/oss-security-scan.yml@cfe13638376e4fbd2165f38c482ad9b66102de37 # v0.3.0 candidate
+    uses: creatornader/oss-security-scan/.github/workflows/oss-security-scan.yml@v0.3.0
     with:
       run-osv-scanner: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
 
